@@ -49,6 +49,9 @@
       background: #ffffff;
       color: #334155;
       transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .btn:hover {
@@ -65,8 +68,28 @@
       background: #c2410c;
     }
 
+    .btn-success {
+      background: #16a34a;
+      border-color: #16a34a;
+      color: #ffffff;
+    }
+
+    .btn-success:hover {
+      background: #15803d;
+    }
+
+    .btn-blue {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .btn-blue:hover {
+      background: #1d4ed8;
+    }
+
     .btn-sm {
-      padding: 4px 10px;
+      padding: 6px 12px;
       font-size: 12px;
     }
 
@@ -168,6 +191,22 @@
       border-radius: 5px;
       padding: 4px 8px;
       gap: 6px;
+      cursor: grab;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .column-tag-item:active {
+      cursor: grabbing;
+    }
+    .column-tag-item.dragging {
+      opacity: 0.4;
+      border: 1px dashed #ea580c;
+    }
+    .column-tag-item .drag-handle {
+      cursor: grab;
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1;
+      user-select: none;
     }
 
     .column-tag-item input {
@@ -231,10 +270,33 @@
       font-family: "Times New Roman", Times, Georgia, serif !important;
       font-size: 12pt;
       line-height: 1.35;
+      position: relative;
     }
 
     .invoice-paper * {
       font-family: inherit;
+    }
+
+    .print-wrapper-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: none;
+    }
+
+    .print-wrapper-table > thead > tr > td,
+    .print-wrapper-table > tfoot > tr > td,
+    .print-wrapper-table > tbody > tr > td {
+      border: none;
+      padding: 0;
+    }
+
+    .invoice-timestamp {
+      text-align: center;
+      padding-top: 12px;
+      font-family: "Courier New", Courier, monospace !important;
+      font-size: 7.5pt;
+      color: #666666;
+      letter-spacing: 0.5px;
     }
 
     /* Kop Surat */
@@ -443,9 +505,34 @@
         padding: 10mm 15mm !important;
         margin: 0 !important;
       }
+      .print-wrapper-table {
+        width: 100% !important;
+      }
+      .print-wrapper-table thead {
+        display: table-header-group !important;
+      }
+      .print-wrapper-table tfoot {
+        display: table-footer-group !important;
+      }
+      .print-wrapper-table tbody {
+        display: table-row-group !important;
+      }
+      .invoice-table tr,
+      .doc-footer {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .invoice-timestamp {
+        text-align: center !important;
+        padding-top: 10px !important;
+        font-family: "Courier New", Courier, monospace !important;
+        font-size: 7.5pt !important;
+        color: #666666 !important;
+        letter-spacing: 0.5px !important;
+      }
       @page {
         size: A4;
-        margin: 8mm;
+        margin: 8mm 10mm 12mm 10mm;
       }
     }
   </style>
@@ -454,8 +541,20 @@
 
   <header class="app-bar">
     <div class="brand-title">Invoice TOKOTUKUID</div>
-    <div>
-      <button class="btn btn-primary" onclick="window.print()">🖨️ Cetak / Unduh PDF</button>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <input type="text" id="searchRefInput" placeholder="Ketik REF (Contoh: TK-8F92A7)" style="padding: 6px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 5px; outline: none; width: 190px;" />
+      <button class="btn btn-sm btn-success" onclick="fetchInvoiceByRef()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        Cari
+      </button>
+      <button class="btn btn-sm btn-blue" onclick="resetFormForNewInvoice()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Invoice Baru
+      </button>
+      <button class="btn btn-sm btn-primary" onclick="triggerPrintAndSave()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Cetak / Unduh PDF
+      </button>
     </div>
   </header>
 
@@ -468,12 +567,12 @@
         <h3>1. Tujuan & Tanggal</h3>
         <div class="form-group">
           <label>Kepada (Nama Klien / Pembeli)</label>
-          <input type="text" id="inKepada" class="form-control" value="Bpk Fahri" oninput="syncPreview()" />
+          <input type="text" id="inKepada" class="form-control" placeholder="Isi nama klien / pembeli..." oninput="syncPreview()" />
         </div>
         <div class="grid-2">
           <div class="form-group">
             <label>Tanggal Invoice</label>
-            <input type="text" id="inTanggal" class="form-control" value="14 September 2026" oninput="syncPreview()" />
+            <input type="text" id="inTanggal" class="form-control" oninput="syncPreview()" />
           </div>
           <div class="form-group">
             <label>Kota (Untuk TTD)</label>
@@ -529,82 +628,282 @@
     <!-- PANEL KANAN (PREVIEW KERTAS ASLI A4) -->
     <div class="preview-panel">
       <div class="invoice-paper">
-        <div>
-          <!-- KOP SURAT ASLI -->
-          <div class="kop-header">
-            <div class="kop-logo-wrap">
-              <img src="logo.png" alt="Logo TOKOTUKUID" onerror="this.src='logo rehan.jpg'" />
-            </div>
-            <div class="kop-text-wrap">
-              <div class="kop-title">TOKOTUKUID</div>
-              <div class="kop-tagline">General Contractor | Demolition Specialist | Cut and Fill</div>
-              <div class="kop-subtext">Jl. Peninggaran Barat 1 No.33, Kebayoran Lama, Jakarta Selatan</div>
-              <div class="kop-subtext">Telp: 0821-8416-4112</div>
-            </div>
-          </div>
+        <table class="print-wrapper-table">
+          <thead>
+            <tr>
+              <td>
+                <!-- KOP SURAT ASLI (AUTO-REPEAT PADA MULTI-PAGE PRINT) -->
+                <div class="kop-header">
+                  <div class="kop-logo-wrap">
+                    <img src="logo.png" alt="Logo TOKOTUKUID" onerror="this.onerror=null; this.src='logo rehan.jpg';" />
+                  </div>
+                  <div class="kop-text-wrap">
+                    <div class="kop-title">TOKOTUKUID</div>
+                    <div class="kop-tagline">General Contractor | Demolition Specialist | Cut and Fill</div>
+                    <div class="kop-subtext">Jl. Peninggaran Barat 1 No.33, Kebayoran Lama, Jakarta Selatan</div>
+                    <div class="kop-subtext">Telp: 0821-8416-4112</div>
+                  </div>
+                </div>
 
-          <!-- GARIS GANDA KOP -->
-          <div class="kop-divider"></div>
+                <!-- GARIS GANDA KOP -->
+                <div class="kop-divider"></div>
+              </td>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <td>
+                <!-- TIMESTAMP MESIN TIK (FOOTER OTOMATIS BERULANG DIPOJOK BAWAH KANAN SETIAP HALAMAN) -->
+                <div class="invoice-timestamp" id="prevTimestamp"></div>
+              </td>
+            </tr>
+          </tfoot>
+          <tbody>
+            <tr>
+              <td>
+                <!-- JUDUL INVOICE LEBIH BESAR -->
+                <div class="doc-title">INVOICE</div>
 
-          <!-- JUDUL INVOICE LEBIH BESAR -->
-          <div class="doc-title">INVOICE</div>
+                <!-- META KEPADA & TANGGAL -->
+                <div class="meta-row">
+                  <table>
+                    <tr>
+                      <td class="label">Kepada:</td>
+                      <td id="prevKepada">Bpk Fahri</td>
+                    </tr>
+                  </table>
+                  <table>
+                    <tr>
+                      <td class="label">Tanggal:</td>
+                      <td id="prevTanggal">14 September 2026</td>
+                    </tr>
+                  </table>
+                </div>
 
-          <!-- META KEPADA & TANGGAL -->
-          <div class="meta-row">
-            <table>
-              <tr>
-                <td class="label">Kepada:</td>
-                <td id="prevKepada">Bpk Fahri</td>
-              </tr>
-            </table>
-            <table>
-              <tr>
-                <td class="label">Tanggal:</td>
-                <td id="prevTanggal">14 September 2026</td>
-              </tr>
-            </table>
-          </div>
+                <!-- TABEL -->
+                <div class="table-box">
+                  <table class="invoice-table">
+                    <thead id="prevThead"></thead>
+                    <tbody id="prevTbody"></tbody>
+                  </table>
+                </div>
 
-          <!-- TABEL -->
-          <div class="table-box">
-            <table class="invoice-table">
-              <thead id="prevThead"></thead>
-              <tbody id="prevTbody"></tbody>
-            </table>
-          </div>
+                <!-- PEMBAYARAN & TTD -->
+                <div class="doc-footer">
+                  <div class="payment-info">
+                    <div class="payment-title">Pembayaran</div>
+                    <div id="prevPayMethod">Transfer Bank BCA</div>
+                    <div id="prevPayRek">No Rek : 2180249357</div>
+                    <div id="prevPayAn">a.n Damad Bakhtiar</div>
+                  </div>
 
-          <!-- PEMBAYARAN & TTD -->
-          <div class="doc-footer">
-            <div class="payment-info">
-              <div class="payment-title">Pembayaran</div>
-              <div id="prevPayMethod">Transfer Bank BCA</div>
-              <div id="prevPayRek">No Rek : 2180249357</div>
-              <div id="prevPayAn">a.n Damad Bakhtiar</div>
-            </div>
-
-            <div class="sign-info">
-              <div id="prevSignDate">Jakarta, 14 September 2026</div>
-              <div class="sign-space"></div>
-              <div class="sign-name" id="prevSignName">Damad Bakhtiar</div>
-            </div>
-          </div>
-        </div>
-
+                  <div class="sign-info">
+                    <div id="prevSignDate">Jakarta, 14 September 2026</div>
+                    <div class="sign-space"></div>
+                    <div class="sign-name" id="prevSignName">Damad Bakhtiar</div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
   <script>
+    function getTodayFormatted() {
+      return new Date().toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
     let columns = ["KETERANGAN", "JUMLAH", "TOTAL"];
     let rows = [
-      ["Rental Forklift", "3 Unit", "5000000"]
+      ["", "", "0"]
     ];
 
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    let docRefCode = "";
+
+    function generateDocRef() {
+      if (!docRefCode) {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let hash = "";
+        for (let i = 0; i < 6; i++) {
+          hash += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        docRefCode = "REF: TK-" + hash;
+      }
+      return docRefCode;
+    }
+
+    function updateTimestamp() {
+      const now = new Date();
+      const d = String(now.getDate()).padStart(2, '0');
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const y = now.getFullYear();
+      const h = String(now.getHours()).padStart(2, '0');
+      const min = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+
+      const ref = generateDocRef();
+
+      const el = document.getElementById("prevTimestamp");
+      if (el) {
+        el.innerText = `ISSUED: ${d}/${m}/${y} ${h}:${min}:${s} WIB | ${ref}`;
+      }
+    }
+
     function init() {
+      document.getElementById("inKepada").value = "";
+      document.getElementById("inTanggal").value = getTodayFormatted();
+      columns = ["KETERANGAN", "JUMLAH", "TOTAL"];
+      rows = [["", "", "0"]];
       renderColumnUi();
       renderRowUi();
       syncPreview();
+      updateTimestamp();
     }
+
+    // --- INTEGRASI GOOGLE SHEETS (HARDCODED UNTUK TIM TOKOTUKUID) ---
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxO8posytbM8VDPmyMKz7TVNtp8voDGv8WBtrOH5f1xGjzGa9x965QNq1coZxuMmxY-/exec";
+
+    function getSheetUrl() {
+      return GOOGLE_SCRIPT_URL.trim();
+    }
+
+    function triggerPrintAndSave() {
+      saveToGoogleSheet(false);
+      window.print();
+    }
+
+    async function saveToGoogleSheet(showSuccessAlert = false) {
+      const url = getSheetUrl();
+      if (!url) {
+        console.warn("GOOGLE_SCRIPT_URL belum diisi di kode index.html");
+        if (showSuccessAlert) alert("⚠️ URL Google Sheets belum diisi pada kode index.html.");
+        return;
+      }
+
+      const lastColIdx = columns.length - 1;
+      let grandTotal = 0;
+      rows.forEach(r => {
+        const raw = r[lastColIdx] || "";
+        const num = parseFloat(raw.toString().replace(/[^0-9]/g, "")) || 0;
+        grandTotal += num;
+      });
+
+      const payload = {
+        timestamp: document.getElementById("prevTimestamp").innerText || "",
+        refCode: docRefCode || generateDocRef(),
+        kepada: document.getElementById("inKepada").value || "",
+        tanggal: document.getElementById("inTanggal").value || "",
+        kota: document.getElementById("inKota").value || "",
+        payMethod: document.getElementById("inPayMethod").value || "",
+        payRek: document.getElementById("inPayRek").value || "",
+        payAn: document.getElementById("inPayAn").value || "",
+        signName: document.getElementById("inSignName").value || "",
+        columns: columns,
+        rows: rows,
+        grandTotal: grandTotal
+      };
+
+      try {
+        await fetch(url, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (showSuccessAlert) {
+          alert("✅ Data Invoice berhasil dikirim dan tersimpan di Google Sheet!");
+        }
+      } catch (err) {
+        console.error("Gagal menyimpan ke Google Sheets:", err);
+        if (showSuccessAlert) alert("❌ Gagal mengirim data ke Google Sheets.");
+      }
+    }
+
+    async function fetchInvoiceByRef() {
+      const refInput = document.getElementById("searchRefInput").value.trim();
+      if (!refInput) {
+        alert("Silakan ketik Nomor Ref (contoh: REF: TK-8F92A7 atau TK-8F92A7)");
+        return;
+      }
+
+      const url = getSheetUrl();
+      if (!url) {
+        alert("⚠️ URL Google Sheets belum diisi pada kode index.html.");
+        return;
+      }
+
+      try {
+        const fetchUrl = url + "?ref=" + encodeURIComponent(refInput);
+        const res = await fetch(fetchUrl);
+        const json = await res.json();
+
+        if (json.status === "success" && json.data) {
+          const item = json.data;
+          document.getElementById("inKepada").value = item.kepada || "";
+          
+          let dateVal = item.tanggal || "";
+          if (dateVal.includes("T") && !isNaN(Date.parse(dateVal))) {
+            dateVal = new Date(dateVal).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
+          }
+          document.getElementById("inTanggal").value = dateVal;
+
+          document.getElementById("inKota").value = item.kota || "";
+          document.getElementById("inPayMethod").value = item.payMethod || "";
+          document.getElementById("inPayRek").value = item.payRek || "";
+          document.getElementById("inPayAn").value = item.payAn || "";
+          document.getElementById("inSignName").value = item.signName || "";
+
+          if (item.columns && item.columns.length > 0) {
+            columns = item.columns;
+          }
+          if (item.rows && item.rows.length > 0) {
+            rows = item.rows;
+          }
+          if (item.refCode) {
+            docRefCode = item.refCode;
+          }
+
+          renderColumnUi();
+          renderRowUi();
+          syncPreview();
+          updateTimestamp();
+          alert("✅ Invoice " + item.refCode + " berhasil dimuat ke form!");
+        } else {
+          alert("⚠️ Nomor Ref " + refInput + " tidak ditemukan di Google Sheets.");
+        }
+      } catch (err) {
+        console.error("Gagal memuat invoice:", err);
+        alert("❌ Terjadi kesalahan saat mengambil data dari Google Sheets.");
+      }
+    }
+
+    function resetFormForNewInvoice() {
+      if (confirm("Apakah Anda yakin ingin membuat Invoice Baru? Form akan di-reset untuk transaksi baru.")) {
+        docRefCode = "";
+        document.getElementById("inKepada").value = "";
+        document.getElementById("inTanggal").value = new Date().toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
+        columns = ["KETERANGAN", "JUMLAH", "TOTAL"];
+        rows = [["", "", "0"]];
+        renderColumnUi();
+        renderRowUi();
+        syncPreview();
+        updateTimestamp();
+      }
+    }
+
+    window.addEventListener('beforeprint', updateTimestamp);
 
     function formatRp(value) {
       if (!value) return "Rp 0";
@@ -613,7 +912,49 @@
       return "Rp " + Number(clean).toLocaleString("id-ID") + ",00";
     }
 
-    // --- MANAJEMEN KOLOM ---
+    // --- MANAJEMEN KOLOM & DRAG AND DROP ---
+    let draggedColIdx = null;
+
+    function handleDragStart(e, idx) {
+      draggedColIdx = idx;
+      e.dataTransfer.effectAllowed = "move";
+      e.currentTarget.classList.add("dragging");
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    }
+
+    function handleDrop(e, targetIdx) {
+      e.preventDefault();
+      if (draggedColIdx !== null && draggedColIdx !== targetIdx) {
+        reorderColumn(draggedColIdx, targetIdx);
+      }
+      draggedColIdx = null;
+    }
+
+    function handleDragEnd(e) {
+      e.currentTarget.classList.remove("dragging");
+      draggedColIdx = null;
+    }
+
+    function reorderColumn(fromIdx, toIdx) {
+      if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= columns.length || toIdx >= columns.length) return;
+
+      const [movedCol] = columns.splice(fromIdx, 1);
+      columns.splice(toIdx, 0, movedCol);
+
+      rows.forEach(r => {
+        const [movedVal] = r.splice(fromIdx, 1);
+        r.splice(toIdx, 0, movedVal);
+      });
+
+      renderColumnUi();
+      renderRowUi();
+      syncPreview();
+    }
+
     function renderColumnUi() {
       const container = document.getElementById("columnListUi");
       container.innerHTML = "";
@@ -621,8 +962,15 @@
       columns.forEach((col, idx) => {
         const item = document.createElement("div");
         item.className = "column-tag-item";
+        item.draggable = true;
+        item.ondragstart = (e) => handleDragStart(e, idx);
+        item.ondragover = (e) => handleDragOver(e);
+        item.ondrop = (e) => handleDrop(e, idx);
+        item.ondragend = (e) => handleDragEnd(e);
+
         item.innerHTML = `
-          <input type="text" value="${col}" oninput="updateColumnName(${idx}, this.value)" />
+          <span class="drag-handle" title="Geser untuk mengubah urutan">⋮⋮</span>
+          <input type="text" value="${escapeHtml(col)}" oninput="updateColumnName(${idx}, this.value)" />
           ${columns.length > 1 ? `<button onclick="removeColumn(${idx})">✕</button>` : ""}
         `;
         container.appendChild(item);
@@ -655,6 +1003,7 @@
 
     function updateColumnName(idx, val) {
       columns[idx] = val.toUpperCase();
+      renderRowUi();
       syncPreview();
     }
 
@@ -673,10 +1022,10 @@
           const val = row[colIdx] || "";
           fieldsHtml += `
             <div>
-              <label style="font-size: 11px; font-weight: 600; color: #64748b;">${col} ${isLastCol ? '(Hanya Angka)' : ''}</label>
+              <label style="font-size: 11px; font-weight: 600; color: #64748b;">${escapeHtml(col)} ${isLastCol ? '(Hanya Angka)' : ''}</label>
               <input type="text" class="form-control" style="padding: 6px 8px;" 
-                value="${val}" 
-                placeholder="${isLastCol ? 'Contoh: 5000000' : 'Isi ' + col}" 
+                value="${escapeHtml(val)}" 
+                placeholder="${isLastCol ? 'Contoh: 5000000' : 'Isi ' + escapeHtml(col)}" 
                 oninput="updateRowCell(${rowIdx}, ${colIdx}, this.value)" />
             </div>
           `;
@@ -733,7 +1082,7 @@
       const thead = document.getElementById("prevThead");
       let headerHtml = "<tr>";
       columns.forEach(c => {
-        headerHtml += `<th style="text-align: center;">${c}</th>`;
+        headerHtml += `<th style="text-align: center;">${escapeHtml(c)}</th>`;
       });
       headerHtml += "</tr>";
       thead.innerHTML = headerHtml;
@@ -749,11 +1098,12 @@
         columns.forEach((_, cIdx) => {
           const rawVal = row[cIdx] || "";
           if (cIdx === lastColIdx) {
-            const num = parseFloat(rawVal.toString().replace(/[^0-9.-]+/g, "")) || 0;
+            const cleanNum = rawVal.toString().replace(/[^0-9]/g, "");
+            const num = parseFloat(cleanNum) || 0;
             grandTotal += num;
             bodyHtml += `<td style="text-align: right;">${formatRp(num)}</td>`;
           } else {
-            bodyHtml += `<td>${rawVal}</td>`;
+            bodyHtml += `<td>${escapeHtml(rawVal)}</td>`;
           }
         });
         bodyHtml += "</tr>";
